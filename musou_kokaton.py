@@ -281,6 +281,14 @@ class NeoGravity(pg.sprite.Sprite):
         self.image = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
         self.image.fill((0, 0, 0, 128))
         self.rect = self.image.get_rect()
+
+    def update(self):
+        """
+        発動時間を1減算し，0未満になったらkill
+        """
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
         
 class Gravity(pg.sprite.Sprite):
     """
