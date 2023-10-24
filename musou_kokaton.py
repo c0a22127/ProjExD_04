@@ -325,7 +325,7 @@ def main():
                 for bomb in pg.sprite.spritecollide(bird, bombs, True):
                     exps.add(Explosion(bomb, 50))
                 score.score_up(1)
-            elif if event.key == pg.K_LSHIFT and event.type == pg.KEYDOWN:
+            elif event.key == pg.K_LSHIFT and event.type == pg.KEYDOWN:
               pass
             else:
                 bird.change_img(8, screen) # こうかとん悲しみエフェクト
