@@ -163,7 +163,7 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle: float = 0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
@@ -266,7 +266,22 @@ class Score:
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         screen.blit(self.image, self.rect)
 
-
+class NeoGravity(pg.sprite.Sprite):
+    """
+    重力場のクラス
+    発動時間：400フレーム
+    """
+    def __init__(self, life):
+        """
+        重力場Surfaceの生成
+        life:発動時間
+        """
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
+        self.image.fill((0, 0, 0, 128))
+        self.rect = self.image.get_rect()
+        
 class Gravity(pg.sprite.Sprite):
     """
     重力球のクラス
@@ -287,7 +302,6 @@ class Gravity(pg.sprite.Sprite):
         self.life -= 1
         if self.life <= 0:
             self.kill()
-    
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -300,6 +314,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    neos = pg.sprite.Group()
     gras = pg.sprite.Group()
 
     tmr = 0
@@ -311,6 +326,9 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.score>= 200:
+                neos.add(NeoGravity(400))
+                score.score_up(-200) # スコア200を消費
                 
             # 右shift押下でハイパーモード
             if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
@@ -322,7 +340,7 @@ def main():
                 Bird.cls_speed=10
                 if event.key == pg.K_LSHIFT:
                     Bird.cls_speed=20
-            
+                    
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -350,6 +368,10 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
 
+        for bomb in pg.sprite.groupcollide(bombs, neos, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.score_up(1)  # 1点アップ
+            
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             # もしハイパーモードなら， 死なずに爆弾を消す
             if bird.state == "hyper":
@@ -374,6 +396,8 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+        neos.update()
+        neos.draw(screen)
         gras.update()
         gras.draw(screen)
         score.update(screen)
