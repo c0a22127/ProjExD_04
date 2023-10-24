@@ -296,9 +296,9 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.score>= 20:
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.score>= 200:
                 neos.add(NeoGravity(400))
-                score.score_up(-20) # スコア200を消費
+                score.score_up(-200) # スコア200を消費
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
