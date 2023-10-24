@@ -37,6 +37,7 @@ def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
 
 
 class Bird(pg.sprite.Sprite):
+    cls_speed = 10
     """
     ゲームキャラクター（こうかとん）に関するクラス
     """
@@ -70,7 +71,7 @@ class Bird(pg.sprite.Sprite):
         self.image = self.imgs[self.dire]
         self.rect = self.image.get_rect()
         self.rect.center = xy
-        self.speed = 10
+        
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -90,13 +91,13 @@ class Bird(pg.sprite.Sprite):
         sum_mv = [0, 0]
         for k, mv in __class__.delta.items():
             if key_lst[k]:
-                self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
+                self.rect.move_ip(+__class__.cls_speed*mv[0], +__class__.cls_speed*mv[1])
                 sum_mv[0] += mv[0]
                 sum_mv[1] += mv[1]
         if check_bound(self.rect) != (True, True):
             for k, mv in __class__.delta.items():
                 if key_lst[k]:
-                    self.rect.move_ip(-self.speed*mv[0], -self.speed*mv[1])
+                    self.rect.move_ip(-__class__.cls_speed*mv[0], -__class__.cls_speed*mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
@@ -239,7 +240,7 @@ class Score:
         self.score = 0
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         self.rect = self.image.get_rect()
-        self.rect.center = 100, HEIGHT-50
+        self.rect.center = 500, HEIGHT-50
 
     def score_up(self, add):
         self.score += add
@@ -270,6 +271,12 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN: #演習１
+                Bird.cls_speed=10
+                if event.key == pg.K_LSHIFT:
+                    Bird.cls_speed=20
+            
+ 
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -289,12 +296,16 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
 
-        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+        if len(pg.sprite.spritecollide(bird, bombs, False)) != 0:
+            if event.key == pg.K_LSHIFT and event.type == pg.KEYDOWN:
+                pass
+            else:
+                for bomb in pg.sprite.spritecollide(bird, bombs, False):
+                    bomb.kill()
+                bird.change_img(8, screen) # こうかとん悲しみエフェクト 
+                pg.display.update()
+                time.sleep(2)
+                return
 
         bird.update(key_lst, screen)
         beams.update()
