@@ -37,6 +37,7 @@ def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
 
 
 class Bird(pg.sprite.Sprite):
+    cls_speed = 10
     """
     ゲームキャラクター（こうかとん）に関するクラス
     """
@@ -70,7 +71,8 @@ class Bird(pg.sprite.Sprite):
         self.image = self.imgs[self.dire]
         self.rect = self.image.get_rect()
         self.rect.center = xy
-        self.speed = 10
+        self.state = "normal"
+        self.hyper_life = 0
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -90,21 +92,37 @@ class Bird(pg.sprite.Sprite):
         sum_mv = [0, 0]
         for k, mv in __class__.delta.items():
             if key_lst[k]:
-                self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
+                self.rect.move_ip(+__class__.cls_speed*mv[0], +__class__.cls_speed*mv[1])
                 sum_mv[0] += mv[0]
                 sum_mv[1] += mv[1]
         if check_bound(self.rect) != (True, True):
             for k, mv in __class__.delta.items():
                 if key_lst[k]:
-                    self.rect.move_ip(-self.speed*mv[0], -self.speed*mv[1])
+                    self.rect.move_ip(-__class__.cls_speed*mv[0], -__class__.cls_speed*mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
+        
+        # ハイパーモード時の処理
+        if self.state == "hyper":
+            self.image = pg.transform.laplacian(self.image)
+        elif self.state == "normal":
+            self.image = self.imgs[self.dire]
+
         screen.blit(self.image, self.rect)
-    
+
+        # ハイパーモードの時間処理
+        if self.hyper_life > 0:
+            self.hyper_life -= 1
+            if self.hyper_life == 0:
+                self.change_state("normal", -1)
+
     def get_direction(self) -> tuple[int, int]:
         return self.dire
     
+    def change_state(self, state: str, hyper_life: int):
+        self.state = state
+        self.hyper_life = hyper_life
 
 class Bomb(pg.sprite.Sprite):
     """
@@ -239,7 +257,7 @@ class Score:
         self.score = 0
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         self.rect = self.image.get_rect()
-        self.rect.center = 100, HEIGHT-50
+        self.rect.center = 500, HEIGHT-50
 
     def score_up(self, add):
         self.score += add
@@ -247,7 +265,6 @@ class Score:
     def update(self, screen: pg.Surface):
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         screen.blit(self.image, self.rect)
-
 
 class NeoGravity(pg.sprite.Sprite):
     """
@@ -265,6 +282,19 @@ class NeoGravity(pg.sprite.Sprite):
         self.image.fill((0, 0, 0, 128))
         self.rect = self.image.get_rect()
         
+class Gravity(pg.sprite.Sprite):
+    """
+    重力球のクラス
+    発動時間：500フレーム
+    重力球：半径200
+    """
+    def __init__(self, bird: Bird, size, life):
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((2*size, 2*size), pg.SRCALPHA)  # RGB表示
+        pg.draw.circle(self.image, (0, 0, 0, 128), (size, size), size)
+        self.rect = self.image.get_rect(center=bird.rect.center)
+
     def update(self):
         """
         発動時間を1減算し，0未満になったらkill
@@ -272,7 +302,6 @@ class NeoGravity(pg.sprite.Sprite):
         self.life -= 1
         if self.life <= 0:
             self.kill()
-
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -286,6 +315,7 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
     neos = pg.sprite.Group()
+    gras = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -299,6 +329,18 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.score>= 200:
                 neos.add(NeoGravity(400))
                 score.score_up(-200) # スコア200を消費
+                
+            # 右shift押下でハイパーモード
+            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
+                # スコア確認
+                if score.score >= 100:
+                    score.score -= 100
+                    bird.change_state("hyper", 500)
+            elif event.type == pg.KEYDOWN: #演習１
+                Bird.cls_speed=10
+                if event.key == pg.K_LSHIFT:
+                    Bird.cls_speed=20
+                    
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -308,6 +350,14 @@ def main():
             if emy.state == "stop" and tmr%emy.interval == 0:
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
+                
+        if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score>= 50:
+            gras.add(Gravity(bird, 200, 500))
+            score.score_up(-50)  # 50点消費
+            
+        for bomb in pg.sprite.groupcollide(bombs, gras, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.score_up(1)  # 1点アップ
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
@@ -323,11 +373,19 @@ def main():
             score.score_up(1)  # 1点アップ
             
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            # もしハイパーモードなら， 死なずに爆弾を消す
+            if bird.state == "hyper":
+                for bomb in pg.sprite.spritecollide(bird, bombs, True):
+                    exps.add(Explosion(bomb, 50))
+                score.score_up(1)
+            elif event.key == pg.K_LSHIFT and event.type == pg.KEYDOWN:
+              pass
+            else:
+                bird.change_img(8, screen) # こうかとん悲しみエフェクト
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
 
         bird.update(key_lst, screen)
         beams.update()
@@ -340,8 +398,10 @@ def main():
         exps.draw(screen)
         neos.update()
         neos.draw(screen)
+        gras.update()
+        gras.draw(screen)
         score.update(screen)
-        pg.display.update()
+        pg.display.update() 
         tmr += 1
         clock.tick(50)
 
