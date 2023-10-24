@@ -169,8 +169,17 @@ class Beam(pg.sprite.Sprite):
         self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
+class NeoBeam:
+    def __init__(self, bird: Bird, num: int):
+        self.beams = self.gen_beams(bird, num)
 
-
+    def gen_beams(self, bird: Bird, num: int):
+        beams = []
+        for _ in range(num):
+            angle = random.randint(-50, 51)  # -50度から+50度のランダムな角度
+            beams.append(Beam(bird, angle))
+        return beams
+    
 class Explosion(pg.sprite.Sprite):
     """
     爆発に関するクラス
@@ -270,6 +279,7 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+                
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
