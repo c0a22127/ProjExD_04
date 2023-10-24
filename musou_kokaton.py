@@ -249,6 +249,28 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+class Gravity(pg.sprite.Sprite):
+    """
+    重力球のクラス
+    発動時間：500フレーム
+    重力球：半径200
+    """
+    def __init__(self, bird: Bird, size, life):
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((2*size, 2*size), pg.SRCALPHA)  # RGB表示
+        pg.draw.circle(self.image, (0, 0, 0, 128), (size, size), size)
+        self.rect = self.image.get_rect(center=bird.rect.center)
+
+    def update(self):
+        """
+        発動時間を1減算し，0未満になったらkill
+        """
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
+    
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -260,6 +282,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gras = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -279,6 +302,14 @@ def main():
             if emy.state == "stop" and tmr%emy.interval == 0:
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
+                
+        if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score>= 50:
+            gras.add(Gravity(bird, 200, 500))
+            score.score_up(-50)  # 50点消費
+            
+        for bomb in pg.sprite.groupcollide(bombs, gras, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.score_up(1)  # 1点アップ
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
@@ -305,6 +336,8 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+        gras.update()
+        gras.draw(screen)
         score.update(screen)
         pg.display.update()
         tmr += 1
